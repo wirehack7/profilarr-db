@@ -15,11 +15,7 @@ customFormats:
   - name: 'Language: Not ENG/GER'
     score: -30000
   radarr: []
-  sonarr:
-  - name: German DL 2
-    score: 25000
-  - name: German DL
-    score: 25000
+  sonarr: []
 qualities:
 - name: Unknown
   enabled: false

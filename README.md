@@ -15,12 +15,10 @@ A personal [Profilarr](https://github.com/Dictionarry-Hub/profilarr) database wi
 
 | Profile | Upgrades | Upgrade Until | Until Score | German DL | German Only | Not ENG/GER |
 |---|:---:|---|:---:|:---:|:---:|:---:|
-| German 480p | yes | Bluray-480p | 5 000 | +25 000 | +15 000 | -30 000 |
-| German 720p | yes | Bluray-720p | 50 000 | +25–50 000 ¹ | +15 000 | -30 000 |
+| German 480p | yes | Bluray-480p | 50 000 | +25 000 | +15 000 | -30 000 |
+| German 720p | yes | Bluray-720p | 50 000 | +25 000 | +15 000 | -30 000 |
 | German 1080p | yes | Bluray-1080p | 50 000 | +25 000 | +15 000 | -30 000 |
 | German 4K | yes | Bluray-2160p | 50 000 | +25 000 | +15 000 | -30 000 |
-
-> ¹ German 720p: Radarr scores German DL / DL 2 at **+50 000**, Sonarr at **+25 000**
 
 ### Standard Profiles
 
