@@ -16,8 +16,10 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Remove scripts directory
-        run: rm -rf scripts/
+      - name: Remove excluded directories
+        run: |
+          rm -rf scripts/
+          rm -rf .forgejo/
 
       - name: Push to GitHub
         env:
