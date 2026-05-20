@@ -6,15 +6,15 @@ upgradeUntilScore: 50000
 minScoreIncrement: 1
 customFormats:
   shared:
+  - name: German DL 2
+    score: 25000
+  - name: German DL
+    score: 25000
   - name: 'Language: German Only'
     score: 15000
   - name: 'Language: Not ENG/GER'
     score: -30000
-  radarr:
-  - name: German DL 2
-    score: 50000
-  - name: German DL
-    score: 50000
+  radarr: []
   sonarr:
   - name: German DL 2
     score: 25000

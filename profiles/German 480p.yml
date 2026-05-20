@@ -2,7 +2,7 @@ name: German 480p
 description: ''
 upgradesAllowed: true
 minCustomFormatScore: 0
-upgradeUntilScore: 5000
+upgradeUntilScore: 50000
 minScoreIncrement: 1
 customFormats:
   shared:
