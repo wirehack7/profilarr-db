@@ -607,6 +607,49 @@ def build_media_management_sql(
 
     return lines
 
+
+def build_delay_profiles_sql(delay_profiles: list[dict]) -> list[str]:
+    if not delay_profiles:
+        return []
+
+    lines: list[str] = ["-- Delay Profiles", ""]
+
+    # Sort by order descending — highest order = default (fallback) profile
+    sorted_profiles = sorted(delay_profiles, key=lambda p: p.get("order", 0), reverse=True)
+
+    for i, dp in enumerate(sorted_profiles):
+        name = "Default" if i == 0 else f"Profile {i + 1}"
+
+        enable_usenet  = dp.get("enableUsenet", True)
+        enable_torrent = dp.get("enableTorrent", True)
+        preferred      = dp.get("preferredProtocol", "usenet")
+
+        if not enable_usenet:
+            protocol = "only_torrent"
+        elif not enable_torrent:
+            protocol = "only_usenet"
+        elif preferred == "torrent":
+            protocol = "prefer_torrent"
+        else:
+            protocol = "prefer_usenet"
+
+        usenet_delay  = dp.get("usenetDelay",  0) if enable_usenet  else None
+        torrent_delay = dp.get("torrentDelay", 0) if enable_torrent else None
+        bypass_hq     = 1 if dp.get("bypassIfHighestQuality", False) else 0
+        bypass_score  = 1 if dp.get("bypassIfAboveCustomFormatScore", False) else 0
+        min_score     = dp.get("minimumCustomFormatScore") if bypass_score else None
+
+        lines.append(
+            f"INSERT INTO delay_profiles "
+            f"(name, preferred_protocol, usenet_delay, torrent_delay, "
+            f"bypass_if_highest_quality, bypass_if_above_custom_format_score, minimum_custom_format_score) "
+            f"VALUES ({q(name)}, {q(protocol)}, {q(usenet_delay)}, {q(torrent_delay)}, "
+            f"{bypass_hq}, {bypass_score}, {q(min_score)});"
+        )
+
+    lines.append("")
+    return lines
+
 # ─── CLI ──────────────────────────────────────────────────────────────────────
 
 def parse_args() -> argparse.Namespace:
@@ -656,12 +699,13 @@ def main() -> None:
     sonarr_cfs:      list[dict] = []
     radarr_qps:      list[dict] = []
     sonarr_qps:      list[dict] = []
-    radarr_naming:   dict | None = None
-    sonarr_naming:   dict | None = None
-    radarr_qualdef:  list[dict] = []
-    sonarr_qualdef:  list[dict] = []
+    radarr_naming:    dict | None = None
+    sonarr_naming:    dict | None = None
+    radarr_qualdef:   list[dict] = []
+    sonarr_qualdef:   list[dict] = []
     radarr_mediamgmt: dict | None = None
     sonarr_mediamgmt: dict | None = None
+    delay_profiles:   list[dict] = []
 
     if export_radarr:
         print("Fetching Radarr Custom Formats...")
@@ -704,7 +748,10 @@ def main() -> None:
         radarr_naming    = api_get(args.radarr_url, args.radarr_api_key, "config/naming")
         radarr_qualdef   = api_get(args.radarr_url, args.radarr_api_key, "qualitydefinition")
         radarr_mediamgmt = api_get(args.radarr_url, args.radarr_api_key, "config/mediamanagement")
+        delay_profiles   = api_get(args.radarr_url, args.radarr_api_key, "delayprofile")
         print("  Done.")
+    elif export_sonarr:
+        delay_profiles = api_get(args.sonarr_url, args.sonarr_api_key, "delayprofile")
 
     if export_sonarr:
         print("\nFetching Sonarr Media Management...")
@@ -721,11 +768,12 @@ def main() -> None:
     # Build SQL — one file per table group
     cf_sections = build_custom_formats_sql(cf_by_name, cf_source)
     qp_sections = build_quality_profiles_sql(radarr_qps, sonarr_qps, radarr_cf_map, sonarr_cf_map)
-    mm_lines    = build_media_management_sql(
+    mm_lines = build_media_management_sql(
         radarr_naming, sonarr_naming,
         radarr_qualdef, sonarr_qualdef,
         radarr_mediamgmt, sonarr_mediamgmt,
     )
+    dp_lines = build_delay_profiles_sql(delay_profiles)
 
     files: list[tuple[str, list[str]]] = [
         ("1.regular_expressions.sql",       cf_sections["regular_expressions"]),
@@ -737,6 +785,7 @@ def main() -> None:
         ("7.quality_profile_scores.sql",    qp_sections["quality_profile_scores"]),
         ("8.quality_profile_tags.sql",      qp_sections["quality_profile_tags"]),
         ("9.media_management.sql",          mm_lines),
+        ("10.delay_profiles.sql",           dp_lines),
     ]
 
     print()

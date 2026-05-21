@@ -41,3 +41,61 @@ A personal [Profilarr](https://github.com/Dictionarry-Hub/profilarr) database wi
 | German DL 2 | Alternative German DL pattern |
 | Language: German Only | Prefers German-only audio |
 | Language: Not ENG/GER | Penalizes releases without English or German |
+
+---
+
+## Export Script
+
+The `scripts/import.py` script exports Custom Formats, Quality Profiles, and Media Management settings from Radarr and Sonarr and writes them as PCD-compliant SQL files under `ops/`.
+
+### Setup
+
+```bash
+pip install -r scripts/requirements.txt
+```
+
+Create a `.env` file in the repo root (already in `.gitignore`):
+
+```env
+RADARR_URL=https://your-radarr/
+RADARR_API_KEY=your_key
+
+SONARR_URL=https://your-sonarr/
+SONARR_API_KEY=your_key
+
+DB_NAME=my-profilarr-db
+DB_DESCRIPTION=My export
+DB_AUTHOR=yourname
+DB_REPO=https://github.com/yourname/profilarr-db
+```
+
+### Run
+
+```bash
+python scripts/import.py
+```
+
+Or pass everything via CLI (overrides `.env`):
+
+```bash
+python scripts/import.py \
+  --radarr-url https://radarr.example.com --radarr-api-key abc123 \
+  --sonarr-url https://sonarr.example.com --sonarr-api-key def456 \
+  --name my-db --description "My export" --author myname
+```
+
+Skip one source with `--no-radarr` or `--no-sonarr`.
+
+### Generated files
+
+| File | Content |
+|---|---|
+| `ops/1.regular_expressions.sql` | Regex patterns for conditions |
+| `ops/2.custom_formats.sql` | Custom format definitions |
+| `ops/3.custom_format_conditions.sql` | All condition types |
+| `ops/4.tags.sql` | Tags derived from profile names |
+| `ops/5.quality_profiles.sql` | Profile metadata |
+| `ops/6.quality_profile_qualities.sql` | Groups, members, quality order |
+| `ops/7.quality_profile_scores.sql` | Custom format scores per profile |
+| `ops/8.quality_profile_tags.sql` | Profile tag assignments |
+| `ops/9.media_management.sql` | Naming, quality definitions, media settings |
