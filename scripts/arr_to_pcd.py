@@ -36,8 +36,8 @@ SONARR_API_KEY = "d803b6476f954d0ea4452bc6caad81f4"
 OUTPUT_DIR = Path(__file__).resolve().parent.parent
 
 # pcd.json Metadaten
-DB_NAME        = "ger-arr-profilarr-db"
-DB_DESCRIPTION = "exported from Radarr/Sonarr"
+DB_NAME        = "wirehack7-arr-profilarr-db"
+DB_DESCRIPTION = "A Profilarr database exported from Radarr and Sonarr"
 DB_AUTHOR      = "wirehack7"
 DB_REPO        = ""  # z.B. https://github.com/deinname/profilarr-db
 
@@ -231,37 +231,59 @@ def convert_custom_format(cf: dict) -> dict:
 
 # ─── Quality Profile Konvertierung ────────────────────────────────────────────
 
-def flatten_qualities(items: list[dict], cutoff_id: int) -> list[dict]:
+def build_qualities(items: list[dict], cutoff_id: int) -> tuple[list[dict], dict | None]:
+    """
+    Konvertiert Radarr/Sonarr-Qualitäten ins PCD-Format.
+    Gibt (qualities_list, upgrade_until_entry) zurück.
+    Nur enabled=true Qualitäten werden in die Liste aufgenommen.
+    """
     result = []
+    upgrade_until = None
+    group_counter = -1
+
     for item in items:
         if "quality" in item:
+            # Einzelne Qualität
             q = item["quality"]
+            if not item.get("allowed", True):
+                continue
             entry: dict[str, Any] = {
-                "name":         q["name"],
-                "enabled":      item.get("allowed", True),
-                "upgradeUntil": q["id"] == cutoff_id,
+                "id":   q["id"],
+                "name": q["name"],
             }
             result.append(entry)
+            if q["id"] == cutoff_id:
+                upgrade_until = {"id": q["id"], "name": q["name"]}
         else:
             # Qualitätsgruppe
             sub_qualities = []
             is_cutoff_group = False
             for sub_item in item.get("items", []):
                 q = sub_item["quality"]
-                sub_qualities.append({
-                    "name":    q["name"],
-                    "enabled": sub_item.get("allowed", True),
-                })
+                if sub_item.get("allowed", True):
+                    sub_qualities.append({
+                        "id":   q["id"],
+                        "name": q["name"],
+                    })
                 if q["id"] == cutoff_id:
                     is_cutoff_group = True
 
-            result.append({
-                "name":         item.get("name", "Gruppe"),
-                "enabled":      item.get("allowed", True),
-                "upgradeUntil": is_cutoff_group,
-                "qualities":    sub_qualities,
-            })
-    return result
+            if not item.get("allowed", True) and not sub_qualities:
+                continue
+
+            group_entry: dict[str, Any] = {
+                "id":        group_counter,
+                "name":      item.get("name", "Gruppe"),
+                "qualities": sub_qualities,
+            }
+            result.append(group_entry)
+
+            if is_cutoff_group:
+                upgrade_until = {"id": group_counter, "name": item.get("name", "Gruppe")}
+
+            group_counter -= 1
+
+    return result, upgrade_until
 
 
 def extract_format_scores(profile: dict, cf_id_to_name: dict[int, str]) -> list[dict]:
@@ -278,21 +300,25 @@ def extract_format_scores(profile: dict, cf_id_to_name: dict[int, str]) -> list[
 def convert_quality_profile(profile: dict, cf_id_to_name: dict[int, str]) -> dict:
     cutoff_id = profile.get("cutoff", 0)
     format_scores = extract_format_scores(profile, cf_id_to_name)
+    qualities, upgrade_until = build_qualities(profile.get("items", []), cutoff_id)
 
-    return {
+    result: dict[str, Any] = {
         "name":                 profile["name"],
         "description":          "",
+        "tags":                 [],
         "upgradesAllowed":      profile.get("upgradeAllowed", True),
         "minCustomFormatScore": profile.get("minFormatScore", 0),
         "upgradeUntilScore":    profile.get("cutoffFormatScore", 888888),
         "minScoreIncrement":    profile.get("minUpgradeFormatScore", 1),
-        "customFormats": {
-            "shared": format_scores,
-            "radarr": [],
-            "sonarr": [],
-        },
-        "qualities": flatten_qualities(profile.get("items", []), cutoff_id),
+        "custom_formats":       format_scores,
+        "custom_formats_radarr": [],
+        "custom_formats_sonarr": [],
+        "qualities":            qualities,
     }
+    if upgrade_until:
+        result["upgrade_until"] = upgrade_until
+
+    return result
 
 
 def merge_profile_scores(
@@ -305,7 +331,7 @@ def merge_profile_scores(
     base = convert_quality_profile(radarr_profile, radarr_cf_map)
     sonarr_scores = extract_format_scores(sonarr_profile, sonarr_cf_map)
 
-    radarr_scores_by_name = {e["name"]: e["score"] for e in base["customFormats"]["shared"]}
+    radarr_scores_by_name = {e["name"]: e["score"] for e in base["custom_formats"]}
     sonarr_scores_by_name = {e["name"]: e["score"] for e in sonarr_scores}
 
     shared, only_radarr, only_sonarr = [], [], []
@@ -322,9 +348,9 @@ def merge_profile_scores(
             if s is not None:
                 only_sonarr.append({"name": cf_name, "score": s})
 
-    base["customFormats"]["shared"] = sorted(shared,      key=lambda x: -x["score"])
-    base["customFormats"]["radarr"] = sorted(only_radarr, key=lambda x: -x["score"])
-    base["customFormats"]["sonarr"] = sorted(only_sonarr, key=lambda x: -x["score"])
+    base["custom_formats"]        = sorted(shared,      key=lambda x: -x["score"])
+    base["custom_formats_radarr"] = sorted(only_radarr, key=lambda x: -x["score"])
+    base["custom_formats_sonarr"] = sorted(only_sonarr, key=lambda x: -x["score"])
     return base
 
 # ─── Datei-Hilfsfunktionen ────────────────────────────────────────────────────
@@ -358,7 +384,7 @@ def main() -> None:
     radarr_qps: list[dict] = []
     sonarr_qps: list[dict] = []
 
-    # ── Custom Formats abrufen ───────────────────────────────────────────
+    # ── Custom Formats abrufen ───────────────────────────────────────
     if EXPORT_RADARR:
         print("\nRufe Radarr Custom Formats ab...")
         radarr_cfs = api_get(RADARR_URL, RADARR_API_KEY, "customformat")
@@ -381,7 +407,7 @@ def main() -> None:
         pcd_cf = convert_custom_format(cf)
         write_yaml(out / "custom_formats" / (safe_filename(name) + ".yml"), pcd_cf)
 
-    # ── Quality Profiles abrufen ─────────────────────────────────────────
+    # ── Quality Profiles abrufen ─────────────────────────────────────
     if EXPORT_RADARR:
         print("\nRufe Radarr Quality Profiles ab...")
         radarr_qps = api_get(RADARR_URL, RADARR_API_KEY, "qualityprofile")
@@ -411,17 +437,16 @@ def main() -> None:
             )
         elif in_radarr:
             pcd = convert_quality_profile(radarr_by_name[name], radarr_cf_map)
-            # Scores in radarr-Sektion verschieben (da sonarr-exklusiv nicht zutreffend)
-            pcd["customFormats"]["radarr"] = pcd["customFormats"].pop("shared")
-            pcd["customFormats"]["shared"] = []
+            pcd["custom_formats_radarr"] = pcd.pop("custom_formats")
+            pcd["custom_formats"] = []
         else:
             pcd = convert_quality_profile(sonarr_by_name[name], sonarr_cf_map)
-            pcd["customFormats"]["sonarr"] = pcd["customFormats"].pop("shared")
-            pcd["customFormats"]["shared"] = []
+            pcd["custom_formats_sonarr"] = pcd.pop("custom_formats")
+            pcd["custom_formats"] = []
 
         write_yaml(out / "profiles" / (safe_filename(name) + ".yml"), pcd)
 
-    # ── pcd.json Manifest ────────────────────────────────────────────────
+    # ── pcd.json Manifest ────────────────────────────────────────────
     print("\nSchreibe pcd.json...")
     arr_types = []
     if EXPORT_RADARR:
@@ -434,10 +459,10 @@ def main() -> None:
         "version":     "1.0.0",
         "description": DB_DESCRIPTION,
         "arr_types":   arr_types,
+        "authors":     [{"name": DB_AUTHOR}],
         "dependencies": {
             "schema": "^1.1.0",
         },
-        "authors": [{"name": DB_AUTHOR}],
         "profilarr": {
             "minimum_version": "2.0.0",
         },
@@ -447,16 +472,16 @@ def main() -> None:
 
     manifest_path = out / "pcd.json"
     with open(manifest_path, "w", encoding="utf-8") as f:
-        json.dump(manifest, f, indent=2, ensure_ascii=False)
+        json.dump(manifest, f, indent=4, ensure_ascii=False)
     print(f"  + {manifest_path}")
 
-    # ── Zusammenfassung ──────────────────────────────────────────────────
+    # ── Zusammenfassung ──────────────────────────────────────────────
     print(f"""
 ╔══════════════════════════════════════════════════════════╗
   Fertig! Datenbank geschrieben nach: {out.resolve()}
 
   Nächste Schritte:
-  1. git init && git add . && git commit -m "initial export"
+  1. git add . && git commit -m "update export"
   2. Repository auf GitHub/Gitea pushen
   3. In Profilarr: Settings → Database → Add Remote Repo
      → URL deines Repos eintragen

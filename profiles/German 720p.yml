@@ -1,21 +1,21 @@
 name: German 720p
 description: ''
+tags: []
 upgradesAllowed: true
 minCustomFormatScore: 0
 upgradeUntilScore: 50000
 minScoreIncrement: 1
-customFormats:
-  shared:
-  - name: German DL 2
-    score: 25000
-  - name: German DL
-    score: 25000
-  - name: 'Language: German Only'
-    score: 15000
-  - name: 'Language: Not ENG/GER'
-    score: -30000
-  radarr: []
-  sonarr: []
+custom_formats:
+- name: German DL 2
+  score: 25000
+- name: German DL
+  score: 25000
+- name: 'Language: German Only'
+  score: 15000
+- name: 'Language: Not ENG/GER'
+  score: -30000
+custom_formats_radarr: []
+custom_formats_sonarr: []
 qualities:
 - name: Unknown
   enabled: false

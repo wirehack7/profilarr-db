@@ -1,13 +1,13 @@
 name: SD
 description: ''
+tags: []
 upgradesAllowed: false
 minCustomFormatScore: 0
 upgradeUntilScore: 0
 minScoreIncrement: 1
-customFormats:
-  shared: []
-  radarr: []
-  sonarr: []
+custom_formats: []
+custom_formats_radarr: []
+custom_formats_sonarr: []
 qualities:
 - name: Unknown
   enabled: false
