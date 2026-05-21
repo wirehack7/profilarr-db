@@ -154,10 +154,10 @@ def q(s: Any) -> str:
 def build_custom_formats_sql(
     cf_by_name: dict[str, dict],
     cf_source: dict[str, str],
-) -> list[str]:
+) -> dict[str, list[str]]:
     """
-    cf_source maps cf name → 'radarr' | 'sonarr' | 'all'
-    Returns SQL lines for custom_formats and all condition tables.
+    Returns a dict with keys matching ops file names:
+      'regular_expressions', 'custom_formats', 'custom_format_conditions'
     """
     cf_lines:      list[str] = []
     regex_lines:   list[str] = []
@@ -291,24 +291,27 @@ def build_custom_formats_sql(
                     f"VALUES ({q(cf_name)}, {q(cond_name)}, {q(rt)});"
                 )
 
-    out: list[str] = []
+    conditions_out: list[str] = []
     for header, lines in [
-        ("-- Regular Expressions",           regex_lines),
-        ("-- Custom Formats",                cf_lines),
-        ("-- Custom Format Conditions",      cond_lines),
-        ("-- Condition Patterns",            pattern_lines),
-        ("-- Condition Sources",             source_lines),
-        ("-- Condition Resolutions",         res_lines),
-        ("-- Condition Languages",           lang_lines),
-        ("-- Condition Indexer Flags",       flag_lines),
-        ("-- Condition Quality Modifiers",   qmod_lines),
-        ("-- Condition Sizes",               size_lines),
-        ("-- Condition Years",               year_lines),
-        ("-- Condition Release Types",       rtype_lines),
+        ("-- Custom Format Conditions",    cond_lines),
+        ("-- Condition Patterns",          pattern_lines),
+        ("-- Condition Sources",           source_lines),
+        ("-- Condition Resolutions",       res_lines),
+        ("-- Condition Languages",         lang_lines),
+        ("-- Condition Indexer Flags",     flag_lines),
+        ("-- Condition Quality Modifiers", qmod_lines),
+        ("-- Condition Sizes",             size_lines),
+        ("-- Condition Years",             year_lines),
+        ("-- Condition Release Types",     rtype_lines),
     ]:
         if lines:
-            out += [header, ""] + lines + [""]
-    return out
+            conditions_out += [header, ""] + lines + [""]
+
+    return {
+        "regular_expressions":      regex_lines,
+        "custom_formats":           cf_lines,
+        "custom_format_conditions": conditions_out,
+    }
 
 # ─── Quality Profiles ─────────────────────────────────────────────────────────
 
@@ -334,11 +337,15 @@ def build_quality_profiles_sql(
     sonarr_qps: list[dict],
     radarr_cf_map: dict[int, str],
     sonarr_cf_map: dict[int, str],
-) -> list[str]:
-    profile_lines: list[str] = []
-    group_lines:   list[str] = []
-    member_lines:  list[str] = []
-    qual_lines:    list[str] = []
+) -> dict[str, list[str]]:
+    """
+    Returns a dict with keys:
+      'quality_profiles', 'quality_profile_qualities', 'quality_profile_scores'
+    """
+    profile_lines:  list[str] = []
+    group_lines:    list[str] = []
+    member_lines:   list[str] = []
+    qual_lines:     list[str] = []
     cf_score_lines: list[str] = []
 
     radarr_by_name = {qp["name"]: qp for qp in radarr_qps}
@@ -362,10 +369,9 @@ def build_quality_profiles_sql(
 
         cutoff_id = base.get("cutoff", 0)
         position  = 0
+        arr       = "radarr" if in_radarr else "sonarr"
 
         for item in base.get("items", []):
-            arr = "radarr" if in_radarr else "sonarr"
-
             if "quality" in item:
                 raw_name = item["quality"]["name"]
                 qname    = normalize_quality_name(raw_name, arr)
@@ -395,8 +401,7 @@ def build_quality_profiles_sql(
                     f"VALUES ({q(name)}, NULL, {q(group_name)}, {position}, {enabled}, {is_until});"
                 )
                 for sub in sub_items:
-                    raw_name = sub["quality"]["name"]
-                    qname    = normalize_quality_name(raw_name, arr)
+                    qname = normalize_quality_name(sub["quality"]["name"], arr)
                     member_lines.append(
                         f"INSERT INTO quality_group_members "
                         f"(quality_profile_name, quality_group_name, quality_name) "
@@ -405,7 +410,6 @@ def build_quality_profiles_sql(
 
             position += 1
 
-        # Custom format scores
         r_scores = {e["name"]: e["score"] for e in extract_format_scores(radarr_by_name[name], radarr_cf_map)} if in_radarr else {}
         s_scores = {e["name"]: e["score"] for e in extract_format_scores(sonarr_by_name[name], sonarr_cf_map)} if in_sonarr else {}
 
@@ -429,17 +433,20 @@ def build_quality_profiles_sql(
                     f"VALUES ({q(name)}, {q(cf_name)}, {q(arr_type)}, {score});"
                 )
 
-    out: list[str] = []
+    qualities_out: list[str] = []
     for header, lines in [
-        ("-- Quality Profiles",                  profile_lines),
-        ("-- Quality Groups",                    group_lines),
-        ("-- Quality Group Members",             member_lines),
-        ("-- Quality Profile Qualities",         qual_lines),
-        ("-- Quality Profile Custom Formats",    cf_score_lines),
+        ("-- Quality Groups",            group_lines),
+        ("-- Quality Group Members",     member_lines),
+        ("-- Quality Profile Qualities", qual_lines),
     ]:
         if lines:
-            out += [header, ""] + lines + [""]
-    return out
+            qualities_out += [header, ""] + lines + [""]
+
+    return {
+        "quality_profiles":          profile_lines,
+        "quality_profile_qualities": qualities_out,
+        "quality_profile_scores":    cf_score_lines,
+    }
 
 # ─── CLI ──────────────────────────────────────────────────────────────────────
 
@@ -532,17 +539,31 @@ def main() -> None:
     total_profiles = len(set(qp["name"] for qp in radarr_qps + sonarr_qps))
     print(f"\n{total_profiles} unique quality profiles.")
 
-    # Build SQL
-    sql_lines: list[str] = [
-        "-- Generated by import.py",
-        "",
-    ]
-    sql_lines += build_custom_formats_sql(cf_by_name, cf_source)
-    sql_lines += build_quality_profiles_sql(radarr_qps, sonarr_qps, radarr_cf_map, sonarr_cf_map)
+    # Build SQL — one file per table group
+    cf_sections = build_custom_formats_sql(cf_by_name, cf_source)
+    qp_sections = build_quality_profiles_sql(radarr_qps, sonarr_qps, radarr_cf_map, sonarr_cf_map)
 
-    sql_path = ops_dir / "1.initial.sql"
-    sql_path.write_text("\n".join(sql_lines), encoding="utf-8")
-    print(f"\nWrote {sql_path}")
+    files: list[tuple[str, list[str]]] = [
+        ("1.regular_expressions.sql",      cf_sections["regular_expressions"]),
+        ("2.custom_formats.sql",           cf_sections["custom_formats"]),
+        ("3.custom_format_conditions.sql", cf_sections["custom_format_conditions"]),
+        ("4.quality_profiles.sql",         qp_sections["quality_profiles"]),
+        ("5.quality_profile_qualities.sql",qp_sections["quality_profile_qualities"]),
+        ("6.quality_profile_scores.sql",   qp_sections["quality_profile_scores"]),
+    ]
+
+    print()
+    for filename, lines in files:
+        path = ops_dir / filename
+        path.write_text("-- Generated by import.py\n\n" + "\n".join(lines), encoding="utf-8")
+        print(f"Wrote {path}  ({len(lines)} lines)")
+
+    # Remove old combined files if present
+    for old_name in ("1.initial.sql", "1.custom_formats.sql", "2.quality_profiles.sql"):
+        old = ops_dir / old_name
+        if old.exists() and old_name not in {f for f, _ in files}:
+            old.unlink()
+            print(f"Removed {old}")
 
     # Update pcd.json
     arr_types = []
