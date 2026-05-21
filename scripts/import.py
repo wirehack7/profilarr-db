@@ -332,6 +332,27 @@ def normalize_quality_name(name: str, arr_type: str) -> str:
     return name
 
 
+# Resolution keywords → tag name
+_TAG_PATTERNS: list[tuple[str, str]] = [
+    ("german",  "German"),
+    ("480p",    "480p"),
+    ("576p",    "576p"),
+    ("720p",    "720p"),
+    ("1080p",   "1080p"),
+    ("2160p",   "4K"),
+    ("4k",      "4K"),
+    ("ultra",   "4K"),
+]
+
+def profile_tags(name: str) -> list[str]:
+    lower = name.lower()
+    seen:  list[str] = []
+    for keyword, tag in _TAG_PATTERNS:
+        if keyword in lower and tag not in seen:
+            seen.append(tag)
+    return seen
+
+
 def build_quality_profiles_sql(
     radarr_qps: list[dict],
     sonarr_qps: list[dict],
@@ -347,6 +368,8 @@ def build_quality_profiles_sql(
     member_lines:   list[str] = []
     qual_lines:     list[str] = []
     cf_score_lines: list[str] = []
+    tag_lines:      list[str] = []
+    all_tags:       set[str]  = set()
 
     radarr_by_name = {qp["name"]: qp for qp in radarr_qps}
     sonarr_by_name = {qp["name"]: qp for qp in sonarr_qps}
@@ -356,6 +379,9 @@ def build_quality_profiles_sql(
         in_sonarr = name in sonarr_by_name
         base      = radarr_by_name[name] if in_radarr else sonarr_by_name[name]
 
+        # upgrade_score_increment must be >= 1 (schema CHECK constraint)
+        score_increment = max(base.get("minUpgradeFormatScore", 1), 1)
+
         profile_lines.append(
             f"INSERT INTO quality_profiles "
             f"(name, description, upgrades_allowed, minimum_custom_format_score, "
@@ -364,8 +390,15 @@ def build_quality_profiles_sql(
             f"{1 if base.get('upgradeAllowed', True) else 0}, "
             f"{base.get('minFormatScore', 0)}, "
             f"{base.get('cutoffFormatScore', 888888)}, "
-            f"{base.get('minUpgradeFormatScore', 1)});"
+            f"{score_increment});"
         )
+
+        for tag in profile_tags(name):
+            all_tags.add(tag)
+            tag_lines.append(
+                f"INSERT INTO quality_profile_tags (quality_profile_name, tag_name) "
+                f"VALUES ({q(name)}, {q(tag)});"
+            )
 
         cutoff_id = base.get("cutoff", 0)
         position  = 0
@@ -442,10 +475,17 @@ def build_quality_profiles_sql(
         if lines:
             qualities_out += [header, ""] + lines + [""]
 
+    tag_inserts = [
+        f"INSERT OR IGNORE INTO tags (name) VALUES ({q(t)});"
+        for t in sorted(all_tags)
+    ]
+
     return {
+        "tags":                      tag_inserts,
         "quality_profiles":          profile_lines,
         "quality_profile_qualities": qualities_out,
         "quality_profile_scores":    cf_score_lines,
+        "quality_profile_tags":      tag_lines,
     }
 
 # ─── CLI ──────────────────────────────────────────────────────────────────────
@@ -544,12 +584,14 @@ def main() -> None:
     qp_sections = build_quality_profiles_sql(radarr_qps, sonarr_qps, radarr_cf_map, sonarr_cf_map)
 
     files: list[tuple[str, list[str]]] = [
-        ("1.regular_expressions.sql",      cf_sections["regular_expressions"]),
-        ("2.custom_formats.sql",           cf_sections["custom_formats"]),
-        ("3.custom_format_conditions.sql", cf_sections["custom_format_conditions"]),
-        ("4.quality_profiles.sql",         qp_sections["quality_profiles"]),
-        ("5.quality_profile_qualities.sql",qp_sections["quality_profile_qualities"]),
-        ("6.quality_profile_scores.sql",   qp_sections["quality_profile_scores"]),
+        ("1.regular_expressions.sql",       cf_sections["regular_expressions"]),
+        ("2.custom_formats.sql",            cf_sections["custom_formats"]),
+        ("3.custom_format_conditions.sql",  cf_sections["custom_format_conditions"]),
+        ("4.tags.sql",                      qp_sections["tags"]),
+        ("5.quality_profiles.sql",          qp_sections["quality_profiles"]),
+        ("6.quality_profile_qualities.sql", qp_sections["quality_profile_qualities"]),
+        ("7.quality_profile_scores.sql",    qp_sections["quality_profile_scores"]),
+        ("8.quality_profile_tags.sql",      qp_sections["quality_profile_tags"]),
     ]
 
     print()
@@ -559,9 +601,13 @@ def main() -> None:
         print(f"Wrote {path}  ({len(lines)} lines)")
 
     # Remove old combined files if present
-    for old_name in ("1.initial.sql", "1.custom_formats.sql", "2.quality_profiles.sql"):
+    current_files = {f for f, _ in files}
+    for old_name in (
+        "1.initial.sql", "1.custom_formats.sql", "2.quality_profiles.sql",
+        "4.quality_profiles.sql", "5.quality_profile_qualities.sql", "6.quality_profile_scores.sql",
+    ):
         old = ops_dir / old_name
-        if old.exists() and old_name not in {f for f, _ in files}:
+        if old.exists() and old_name not in current_files:
             old.unlink()
             print(f"Removed {old}")
 
