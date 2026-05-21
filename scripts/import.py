@@ -488,6 +488,125 @@ def build_quality_profiles_sql(
         "quality_profile_tags":      tag_lines,
     }
 
+# ─── Media Management ────────────────────────────────────────────────────────
+
+# Radarr API value → schema CHECK value
+_COLON_MAP: dict[str, str] = {
+    "delete":           "delete",
+    "dash":             "dash",
+    "spaceDash":        "spaceDash",
+    "spaceDashSpace":   "spaceDashSpace",
+    "smart":            "smart",
+    # older Radarr versions
+    "doNotUpgrade":     "doNotUpgradeAutomatically",
+}
+
+_PROPERS_MAP: dict[str, str] = {
+    "doNotPrefer":               "doNotPrefer",
+    "preferAndUpgrade":          "preferAndUpgrade",
+    "doNotUpgrade":              "doNotUpgradeAutomatically",
+    "doNotUpgradeAutomatically": "doNotUpgradeAutomatically",
+}
+
+
+def build_media_management_sql(
+    radarr_naming:    dict | None,
+    sonarr_naming:    dict | None,
+    radarr_qualdef:   list[dict],
+    sonarr_qualdef:   list[dict],
+    radarr_mediamgmt: dict | None,
+    sonarr_mediamgmt: dict | None,
+) -> list[str]:
+    lines: list[str] = []
+
+    if radarr_naming:
+        colon = _COLON_MAP.get(radarr_naming.get("colonReplacementFormat", "smart"), "smart")
+        lines += [
+            "-- Radarr Naming", "",
+            f"INSERT INTO radarr_naming "
+            f"(name, rename, movie_format, movie_folder_format, replace_illegal_characters, colon_replacement_format) "
+            f"VALUES ({q('default')}, "
+            f"{1 if radarr_naming.get('renameMovies', True) else 0}, "
+            f"{q(radarr_naming.get('standardMovieFormat', ''))}, "
+            f"{q(radarr_naming.get('movieFolderFormat', ''))}, "
+            f"{1 if radarr_naming.get('replaceIllegalCharacters', False) else 0}, "
+            f"{q(colon)});",
+            "",
+        ]
+
+    if sonarr_naming:
+        lines += [
+            "-- Sonarr Naming", "",
+            f"INSERT INTO sonarr_naming "
+            f"(name, rename, standard_episode_format, daily_episode_format, anime_episode_format, "
+            f"series_folder_format, season_folder_format, replace_illegal_characters, "
+            f"colon_replacement_format, custom_colon_replacement_format, multi_episode_style) "
+            f"VALUES ({q('default')}, "
+            f"{1 if sonarr_naming.get('renameEpisodes', True) else 0}, "
+            f"{q(sonarr_naming.get('standardEpisodeFormat', ''))}, "
+            f"{q(sonarr_naming.get('dailyEpisodeFormat', ''))}, "
+            f"{q(sonarr_naming.get('animeEpisodeFormat', ''))}, "
+            f"{q(sonarr_naming.get('seriesFolderFormat', ''))}, "
+            f"{q(sonarr_naming.get('seasonFolderFormat', ''))}, "
+            f"{1 if sonarr_naming.get('replaceIllegalCharacters', False) else 0}, "
+            f"{sonarr_naming.get('colonReplacementFormat', 4)}, "
+            f"{q(sonarr_naming.get('customColonReplacementFormat')) if sonarr_naming.get('customColonReplacementFormat') else 'NULL'}, "
+            f"{sonarr_naming.get('multiEpisodeStyle', 5)});",
+            "",
+        ]
+
+    if radarr_qualdef:
+        lines += ["-- Radarr Quality Definitions", ""]
+        for qd in radarr_qualdef:
+            qname = qd.get("quality", {}).get("name", "")
+            if not qname:
+                continue
+            lines.append(
+                f"INSERT INTO radarr_quality_definitions (name, quality_name, min_size, max_size, preferred_size) "
+                f"VALUES ({q('default')}, {q(qname)}, "
+                f"{qd.get('minSize') or 0}, "
+                f"{qd.get('maxSize') or 0}, "
+                f"{qd.get('preferredSize') or 0});"
+            )
+        lines.append("")
+
+    if sonarr_qualdef:
+        lines += ["-- Sonarr Quality Definitions", ""]
+        for qd in sonarr_qualdef:
+            qname = qd.get("quality", {}).get("name", "")
+            if not qname:
+                continue
+            lines.append(
+                f"INSERT INTO sonarr_quality_definitions (name, quality_name, min_size, max_size, preferred_size) "
+                f"VALUES ({q('default')}, {q(qname)}, "
+                f"{qd.get('minSize') or 0}, "
+                f"{qd.get('maxSize') or 0}, "
+                f"{qd.get('preferredSize') or 0});"
+            )
+        lines.append("")
+
+    if radarr_mediamgmt:
+        propers = _PROPERS_MAP.get(radarr_mediamgmt.get("downloadPropersAndRepacks", "doNotPrefer"), "doNotPrefer")
+        lines += [
+            "-- Radarr Media Settings", "",
+            f"INSERT INTO radarr_media_settings (name, propers_repacks, enable_media_info) "
+            f"VALUES ({q('default')}, {q(propers)}, "
+            f"{1 if radarr_mediamgmt.get('enableMediaInfo', True) else 0});",
+            "",
+        ]
+
+    if sonarr_mediamgmt:
+        propers = _PROPERS_MAP.get(sonarr_mediamgmt.get("downloadPropersAndRepacks", "doNotPrefer"), "doNotPrefer")
+        lines += [
+            "-- Sonarr Media Settings", "",
+            f"INSERT INTO sonarr_media_settings (name, propers_repacks, enable_media_info) "
+            f"VALUES ({q('default')}, {q(propers)}, "
+            f"{1 if sonarr_mediamgmt.get('enableMediaInfo', True) else 0});",
+            "",
+        ]
+
+    return lines
+
 # ─── CLI ──────────────────────────────────────────────────────────────────────
 
 def parse_args() -> argparse.Namespace:
@@ -533,10 +652,16 @@ def main() -> None:
     ops_dir = out / "ops"
     ops_dir.mkdir(parents=True, exist_ok=True)
 
-    radarr_cfs: list[dict] = []
-    sonarr_cfs: list[dict] = []
-    radarr_qps: list[dict] = []
-    sonarr_qps: list[dict] = []
+    radarr_cfs:      list[dict] = []
+    sonarr_cfs:      list[dict] = []
+    radarr_qps:      list[dict] = []
+    sonarr_qps:      list[dict] = []
+    radarr_naming:   dict | None = None
+    sonarr_naming:   dict | None = None
+    radarr_qualdef:  list[dict] = []
+    sonarr_qualdef:  list[dict] = []
+    radarr_mediamgmt: dict | None = None
+    sonarr_mediamgmt: dict | None = None
 
     if export_radarr:
         print("Fetching Radarr Custom Formats...")
@@ -574,6 +699,20 @@ def main() -> None:
         sonarr_qps = api_get(args.sonarr_url, args.sonarr_api_key, "qualityprofile")
         print(f"  {len(sonarr_qps)} found.")
 
+    if export_radarr:
+        print("\nFetching Radarr Media Management...")
+        radarr_naming    = api_get(args.radarr_url, args.radarr_api_key, "config/naming")
+        radarr_qualdef   = api_get(args.radarr_url, args.radarr_api_key, "qualitydefinition")
+        radarr_mediamgmt = api_get(args.radarr_url, args.radarr_api_key, "config/mediamanagement")
+        print("  Done.")
+
+    if export_sonarr:
+        print("\nFetching Sonarr Media Management...")
+        sonarr_naming    = api_get(args.sonarr_url, args.sonarr_api_key, "config/naming")
+        sonarr_qualdef   = api_get(args.sonarr_url, args.sonarr_api_key, "qualitydefinition")
+        sonarr_mediamgmt = api_get(args.sonarr_url, args.sonarr_api_key, "config/mediamanagement")
+        print("  Done.")
+
     radarr_cf_map: dict[int, str] = {cf["id"]: cf["name"] for cf in radarr_cfs}
     sonarr_cf_map: dict[int, str] = {cf["id"]: cf["name"] for cf in sonarr_cfs}
     total_profiles = len(set(qp["name"] for qp in radarr_qps + sonarr_qps))
@@ -582,6 +721,11 @@ def main() -> None:
     # Build SQL — one file per table group
     cf_sections = build_custom_formats_sql(cf_by_name, cf_source)
     qp_sections = build_quality_profiles_sql(radarr_qps, sonarr_qps, radarr_cf_map, sonarr_cf_map)
+    mm_lines    = build_media_management_sql(
+        radarr_naming, sonarr_naming,
+        radarr_qualdef, sonarr_qualdef,
+        radarr_mediamgmt, sonarr_mediamgmt,
+    )
 
     files: list[tuple[str, list[str]]] = [
         ("1.regular_expressions.sql",       cf_sections["regular_expressions"]),
@@ -592,6 +736,7 @@ def main() -> None:
         ("6.quality_profile_qualities.sql", qp_sections["quality_profile_qualities"]),
         ("7.quality_profile_scores.sql",    qp_sections["quality_profile_scores"]),
         ("8.quality_profile_tags.sql",      qp_sections["quality_profile_tags"]),
+        ("9.media_management.sql",          mm_lines),
     ]
 
     print()
