@@ -692,6 +692,13 @@ def parse_args() -> argparse.Namespace:
     meta.add_argument("--author",      default=os.getenv("DB_AUTHOR",      ""))
     meta.add_argument("--repo",        default=os.getenv("DB_REPO",        ""))
 
+    parser.add_argument(
+        "--profile-prefix",
+        default=os.getenv("PROFILE_PREFIX", ""),
+        metavar="PREFIX",
+        help="Only export quality profiles whose name starts with PREFIX (env: PROFILE_PREFIX)",
+    )
+
     return parser.parse_args()
 
 # ─── Main ─────────────────────────────────────────────────────────────────────
@@ -779,10 +786,16 @@ def main() -> None:
         sonarr_mediamgmt = api_get(args.sonarr_url, args.sonarr_api_key, "config/mediamanagement")
         print("  Done.")
 
+    if args.profile_prefix:
+        prefix = args.profile_prefix
+        radarr_qps = [qp for qp in radarr_qps if qp["name"].startswith(prefix)]
+        sonarr_qps = [qp for qp in sonarr_qps if qp["name"].startswith(prefix)]
+        print(f"\nProfile prefix filter '{prefix}' applied.")
+
     radarr_cf_map: dict[int, str] = {cf["id"]: cf["name"] for cf in radarr_cfs}
     sonarr_cf_map: dict[int, str] = {cf["id"]: cf["name"] for cf in sonarr_cfs}
     total_profiles = len(set(qp["name"] for qp in radarr_qps + sonarr_qps))
-    print(f"\n{total_profiles} unique quality profiles.")
+    print(f"{total_profiles} unique quality profiles.")
 
     # Build SQL — one file per table group
     cf_sections = build_custom_formats_sql(cf_by_name, cf_source)

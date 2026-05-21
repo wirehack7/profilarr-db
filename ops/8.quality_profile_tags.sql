@@ -8,8 +8,3 @@ INSERT INTO quality_profile_tags (quality_profile_name, tag_name) VALUES ('Germa
 INSERT INTO quality_profile_tags (quality_profile_name, tag_name) VALUES ('German 4K', '4K');
 INSERT INTO quality_profile_tags (quality_profile_name, tag_name) VALUES ('German 720p', 'German');
 INSERT INTO quality_profile_tags (quality_profile_name, tag_name) VALUES ('German 720p', '720p');
-INSERT INTO quality_profile_tags (quality_profile_name, tag_name) VALUES ('HD - 720p/1080p', '720p');
-INSERT INTO quality_profile_tags (quality_profile_name, tag_name) VALUES ('HD - 720p/1080p', '1080p');
-INSERT INTO quality_profile_tags (quality_profile_name, tag_name) VALUES ('HD-1080p', '1080p');
-INSERT INTO quality_profile_tags (quality_profile_name, tag_name) VALUES ('HD-720p', '720p');
-INSERT INTO quality_profile_tags (quality_profile_name, tag_name) VALUES ('Ultra-HD', '4K');
