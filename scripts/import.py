@@ -137,6 +137,16 @@ def get_field(fields: list[dict], name: str) -> Any:
             return f.get("value")
     return None
 
+# Quality names that exist in the schema's qualities table (ops/2.qualities.sql)
+KNOWN_QUALITIES: frozenset[str] = frozenset({
+    "Unknown", "WORKPRINT", "CAM", "TELESYNC", "TELECINE", "DVDSCR", "REGIONAL",
+    "SDTV", "DVD", "DVD-R", "HDTV-480p", "HDTV-720p", "HDTV-1080p", "HDTV-2160p",
+    "WEBDL-480p", "WEBDL-720p", "WEBDL-1080p", "WEBDL-2160p",
+    "WEBRip-480p", "WEBRip-720p", "WEBRip-1080p", "WEBRip-2160p",
+    "Bluray-480p", "Bluray-576p", "Bluray-720p", "Bluray-1080p", "Bluray-2160p",
+    "Remux-1080p", "Remux-2160p", "BR-DISK", "Raw-HD",
+})
+
 # ─── SQL helpers ──────────────────────────────────────────────────────────────
 
 def q(s: Any) -> str:
@@ -412,6 +422,11 @@ def build_quality_profiles_sql(
                 enabled  = 1 if item.get("allowed", True) else 0
                 is_until = 1 if qid == cutoff_id else 0
 
+                if qname not in KNOWN_QUALITIES:
+                    print(f"    [WARN] Skipping unknown quality '{qname}' in profile '{name}'", file=sys.stderr)
+                    position += 1
+                    continue
+
                 qual_lines.append(
                     f"INSERT INTO quality_profile_qualities "
                     f"(quality_profile_name, quality_name, quality_group_name, position, enabled, upgrade_until) "
@@ -435,6 +450,9 @@ def build_quality_profiles_sql(
                 )
                 for sub in sub_items:
                     qname = normalize_quality_name(sub["quality"]["name"], arr)
+                    if qname not in KNOWN_QUALITIES:
+                        print(f"    [WARN] Skipping unknown quality '{qname}' in group '{group_name}'", file=sys.stderr)
+                        continue
                     member_lines.append(
                         f"INSERT INTO quality_group_members "
                         f"(quality_profile_name, quality_group_name, quality_name) "
@@ -559,7 +577,7 @@ def build_media_management_sql(
         lines += ["-- Radarr Quality Definitions", ""]
         for qd in radarr_qualdef:
             qname = qd.get("quality", {}).get("name", "")
-            if not qname:
+            if not qname or qname not in KNOWN_QUALITIES:
                 continue
             lines.append(
                 f"INSERT INTO radarr_quality_definitions (name, quality_name, min_size, max_size, preferred_size) "
@@ -573,8 +591,9 @@ def build_media_management_sql(
     if sonarr_qualdef:
         lines += ["-- Sonarr Quality Definitions", ""]
         for qd in sonarr_qualdef:
-            qname = qd.get("quality", {}).get("name", "")
-            if not qname:
+            raw   = qd.get("quality", {}).get("name", "")
+            qname = SONARR_QUALITY_NAME_MAP.get(raw, raw)
+            if not qname or qname not in KNOWN_QUALITIES:
                 continue
             lines.append(
                 f"INSERT INTO sonarr_quality_definitions (name, quality_name, min_size, max_size, preferred_size) "

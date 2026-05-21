@@ -59,12 +59,12 @@ INSERT INTO sonarr_quality_definitions (name, quality_name, min_size, max_size, 
 INSERT INTO sonarr_quality_definitions (name, quality_name, min_size, max_size, preferred_size) VALUES ('default', 'WEBRip-1080p', 0, 0, 990);
 INSERT INTO sonarr_quality_definitions (name, quality_name, min_size, max_size, preferred_size) VALUES ('default', 'WEBDL-1080p', 0, 0, 990);
 INSERT INTO sonarr_quality_definitions (name, quality_name, min_size, max_size, preferred_size) VALUES ('default', 'Bluray-1080p', 0, 0, 990);
-INSERT INTO sonarr_quality_definitions (name, quality_name, min_size, max_size, preferred_size) VALUES ('default', 'Bluray-1080p Remux', 0, 0, 990);
+INSERT INTO sonarr_quality_definitions (name, quality_name, min_size, max_size, preferred_size) VALUES ('default', 'Remux-1080p', 0, 0, 990);
 INSERT INTO sonarr_quality_definitions (name, quality_name, min_size, max_size, preferred_size) VALUES ('default', 'HDTV-2160p', 0, 0, 990);
 INSERT INTO sonarr_quality_definitions (name, quality_name, min_size, max_size, preferred_size) VALUES ('default', 'WEBRip-2160p', 0, 0, 990);
 INSERT INTO sonarr_quality_definitions (name, quality_name, min_size, max_size, preferred_size) VALUES ('default', 'WEBDL-2160p', 0, 0, 990);
 INSERT INTO sonarr_quality_definitions (name, quality_name, min_size, max_size, preferred_size) VALUES ('default', 'Bluray-2160p', 0, 0, 990);
-INSERT INTO sonarr_quality_definitions (name, quality_name, min_size, max_size, preferred_size) VALUES ('default', 'Bluray-2160p Remux', 0, 0, 990);
+INSERT INTO sonarr_quality_definitions (name, quality_name, min_size, max_size, preferred_size) VALUES ('default', 'Remux-2160p', 0, 0, 990);
 
 -- Radarr Media Settings
 
