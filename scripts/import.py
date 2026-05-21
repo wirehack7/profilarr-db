@@ -496,10 +496,7 @@ def main() -> None:
         "arr_types":   arr_types,
         "authors":     [{"name": args.author}] if args.author else [],
         "dependencies": {
-            "schema": {
-                "version": "^1.1.0",
-                "repository": "https://github.com/dictionarry-hub/schema",
-            },
+            "https://github.com/Dictionarry-Hub/schema": "1.1.0",
         },
         "profilarr": {
             "minimum_version": "2.0.0",
