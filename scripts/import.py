@@ -50,10 +50,17 @@ IMPL_TO_TYPE: dict[str, str] = {
     "EditionSpecification":         "edition",
 }
 
-SOURCE_MAP: dict[int, str] = {
-    0: "unknown", 1: "cam", 2: "telesync", 3: "telecine",
-    4: "workprint", 5: "dvd", 6: "television", 7: "webrip",
-    8: "webdl", 9: "bluray",
+# Radarr and Sonarr use different enum values; output names match Profilarr's SOURCE_VALUES
+SOURCE_MAP: dict[str, dict[int, str]] = {
+    "radarr": {
+        0: "unknown", 1: "cam", 2: "telesync", 3: "telecine",
+        4: "workprint", 5: "dvd", 6: "television", 7: "web_dl",
+        8: "webrip", 9: "bluray",
+    },
+    "sonarr": {
+        0: "unknown", 1: "television", 2: "television_raw", 3: "web_dl",
+        4: "webrip", 5: "dvd", 6: "bluray", 7: "bluray_raw",
+    },
 }
 
 RESOLUTION_MAP: dict[int, str] = {
@@ -232,7 +239,9 @@ def build_custom_formats_sql(
 
             elif cond_type == "source":
                 raw = get_field(fields, "value")
-                src = SOURCE_MAP.get(raw, str(raw)) if raw is not None else "unknown"
+                # cf_by_name holds the Radarr definition unless the CF exists only in Sonarr
+                src_map = SOURCE_MAP["sonarr" if arr_type == "sonarr" else "radarr"]
+                src = src_map.get(raw, str(raw)) if raw is not None else "unknown"
                 source_lines.append(
                     f"INSERT INTO condition_sources "
                     f"(custom_format_name, condition_name, source) "

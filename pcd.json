@@ -1,6 +1,6 @@
 {
   "name": "wirehack7-arr-profilarr-db",
-  "version": "1.0.1",
+  "version": "1.1.0",
   "description": "German quality profiles",
   "arr_types": [
     "radarr",

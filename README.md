@@ -13,12 +13,31 @@ A personal [Profilarr](https://github.com/Dictionarry-Hub/profilarr) database wi
 
 ### German Profiles
 
-| Profile | Upgrades | Upgrade Until | Until Score | German DL | German Only | Not ENG/GER |
-|---|:---:|---|:---:|:---:|:---:|:---:|
-| German 480p | yes | Bluray-480p | 50 000 | +25 000 | +15 000 | -30 000 |
-| German 720p | yes | Bluray-720p | 50 000 | +25 000 | +15 000 | -30 000 |
-| German 1080p | yes | Bluray-1080p | 50 000 | +25 000 | +15 000 | -30 000 |
-| German 4K | yes | Bluray-2160p | 50 000 | +25 000 | +15 000 | -30 000 |
+German is always preferred over English, regardless of quality. English is only grabbed as a fallback and gets replaced as soon as a German release shows up.
+
+| Profile | Allowed qualities | Upgrade Until Score |
+|---|---|:---:|
+| German 480p | DVD, WEB/Bluray 480p | 25 300 |
+| German 720p | up to 720p | 26 300 |
+| German 1080p | up to 1080p | 27 300 |
+| German 4K | up to 2160p | 28 300 |
+
+#### Why one merged quality group?
+
+Radarr and Sonarr compare **quality first** and use the custom format score only as a tie-breaker within the same quality. They also accept every quality upgrade regardless of score. With a classic quality ladder an English WEB-1080p beats a German HDTV-720p, and an English Bluray-1080p replaces an existing German DL WEB-1080p.
+
+Each profile therefore has a single quality group containing all allowed qualities, so the score alone decides. The former quality order is rebuilt with small resolution and source scores that can never bridge a language tier:
+
+| Custom Format | Score |
+|---|:---:|
+| German DL / German DL 2 | +25 000 |
+| Language: German Only | +15 000 |
+| *(English, no language CF)* | 0 |
+| Language: Not ENG/GER | -30 000 *(rejected, minimum score 0)* |
+| Resolution: 720p / 1080p / 2160p | +1 000 / +2 000 / +3 000 |
+| Source: HDTV / WEB / Bluray | +100 / +200 / +300 |
+
+The default delay profile lets releases scoring at least 15 000 (= German) bypass the delay; everything else waits 6 hours.
 
 ---
 
@@ -30,6 +49,8 @@ A personal [Profilarr](https://github.com/Dictionarry-Hub/profilarr) database wi
 | German DL 2 | Alternative German DL pattern |
 | Language: German Only | Prefers German-only audio |
 | Language: Not ENG/GER | Penalizes releases without English or German |
+| Resolution: 720p / 1080p / 2160p | Resolution ranking inside the merged quality group |
+| Source: HDTV / WEB / Bluray | Source ranking inside the merged quality group |
 
 ---
 
@@ -88,3 +109,5 @@ Skip one source with `--no-radarr` or `--no-sonarr`.
 | `ops/7.quality_profile_scores.sql` | Custom format scores per profile |
 | `ops/8.quality_profile_tags.sql` | Profile tag assignments |
 | `ops/9.media_management.sql` | Naming, quality definitions, media settings |
+
+`ops/11.*` and later are hand-written changes applied on top of the export.
