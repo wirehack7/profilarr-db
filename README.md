@@ -20,7 +20,7 @@ German is always preferred over English, regardless of quality. English is only 
 | German 480p | DVD, WEB/Bluray 480p | 25 300 |
 | German 720p | up to 720p | 26 300 |
 | German 1080p | up to 1080p | 27 300 |
-| German 4K | up to 2160p | 28 300 |
+| German 4K | up to 2160p | 28 800 |
 
 #### Why one merged quality group?
 
@@ -36,6 +36,9 @@ Each profile therefore has a single quality group containing all allowed qualiti
 | Language: Not ENG/GER | -30 000 *(rejected, minimum score 0)* |
 | Resolution: 720p / 1080p / 2160p | +1 000 / +2 000 / +3 000 |
 | Source: HDTV / WEB / Bluray | +100 / +200 / +300 |
+| HDR *(German 4K only)* | +500 |
+| DV (w/o HDR fallback) *(German 4K only)* | -1 000 |
+| Unwanted: CAM/TS / Line/Mic Dubbed / External Audio | -100 000 *(rejected)* |
 
 The default delay profile lets releases scoring at least 15 000 (= German) bypass the delay; everything else waits 6 hours.
 
@@ -51,6 +54,11 @@ The default delay profile lets releases scoring at least 15 000 (= German) bypas
 | Language: Not ENG/GER | Penalizes releases without English or German |
 | Resolution: 720p / 1080p / 2160p | Resolution ranking inside the merged quality group |
 | Source: HDTV / WEB / Bluray | Source ranking inside the merged quality group |
+| HDR | Prefers HDR10, HDR10+, HLG and Dolby Vision over SDR in German 4K |
+| DV (w/o HDR fallback) | Dolby Vision without HDR10 base layer (wrong colors on non-DV players) |
+| Unwanted: CAM/TS | Rejects CAM, Telesync and Telecine (Sonarr has no such qualities) |
+| Unwanted: Line/Mic Dubbed | Rejects German cinema/line audio: MD, LD, AC3MD, AC3LD, LiNE, MiC |
+| Unwanted: External Audio | Rejects German audio synced in from another source: AC3D, DTSD, EAC3D …, and *Dubbed* in Radarr |
 
 ---
 
