@@ -17,10 +17,10 @@ German is always preferred over English, regardless of quality. English is only 
 
 | Profile | Allowed qualities | Upgrade Until Score |
 |---|---|:---:|
-| German 480p | DVD, WEB/Bluray 480p | 25 300 |
-| German 720p | up to 720p | 26 300 |
-| German 1080p | up to 1080p | 27 300 |
-| German 4K | up to 2160p | 28 800 |
+| German 480p | DVD, WEB/Bluray 480p | 25 307 |
+| German 720p | up to 720p | 26 307 |
+| German 1080p | up to 1080p | 27 307 |
+| German 4K | up to 2160p | 28 807 |
 
 #### Why one merged quality group?
 
@@ -38,7 +38,8 @@ Each profile therefore has a single quality group containing all allowed qualiti
 | Source: HDTV / WEB / Bluray | +100 / +200 / +300 |
 | HDR *(German 4K only)* | +500 |
 | DV (w/o HDR fallback) *(German 4K only)* | -1 000 |
-| Unwanted: CAM/TS / Line/Mic Dubbed / External Audio | -100 000 *(rejected)* |
+| Unwanted: CAM/TS / Line/Mic Dubbed / External Audio / Upscaled / BR-DISK / 3D | -100 000 *(rejected)* |
+| Repack/Proper / v2 / v3 | +5 / +6 / +7 |
 | Unwanted: Double Title | -14 000 |
 
 The default delay profile lets releases scoring at least 15 000 (= German) bypass the delay; everything else waits 6 hours.
@@ -50,8 +51,8 @@ The default delay profile lets releases scoring at least 15 000 (= German) bypas
 | Format | Purpose |
 |---|---|
 | German DL | Detects German dual-language releases |
-| German DL 2 | Alternative German DL pattern |
-| Language: German Only | Prefers German-only audio |
+| German DL 2 | Alternative German DL pattern (not for *Subbed* titles) |
+| Language: German Only | Prefers German-only audio (not for *German Subbed*, which counts as English fallback) |
 | Language: Not ENG/GER | Penalizes releases without English or German |
 | Resolution: 720p / 1080p / 2160p | Resolution ranking inside the merged quality group |
 | Source: HDTV / WEB / Bluray | Source ranking inside the merged quality group |
@@ -60,6 +61,10 @@ The default delay profile lets releases scoring at least 15 000 (= German) bypas
 | Unwanted: CAM/TS | Rejects CAM, Telesync and Telecine (Sonarr has no such qualities) |
 | Unwanted: Line/Mic Dubbed | Rejects German cinema/line audio: MD, LD, AC3MD, AC3LD, LiNE, MiC |
 | Unwanted: External Audio | Rejects German audio synced in from another source: AC3D, DTSD, EAC3D …, and *Dubbed* in Radarr |
+| Repack/Proper / v2 / v3 | Prefers fixed re-releases (REPACK, PROPER, RERiP). Propers/Repacks are set to *Do not prefer*, so only this score makes them an upgrade. Upgrade Until Score includes the +7 |
+| Unwanted: Upscaled | Rejects upscaled fake 4K: Upscaled, AI Upscale, UpsUHD |
+| Unwanted: BR-DISK | Rejects full Blu-ray disc images (COMPLETE BLURAY, BDMV, BD50/66). Sonarr has no BR-DISK quality |
+| Unwanted: 3D | Rejects 3D releases (3D, SBS, HSBS, HOU) |
 | Unwanted: Double Title | Penalizes *English Title - German Title* series releases (e.g. `Adventure.Time.-.Abenteuerzeit.mit.Finn.und.Jake.S05E04…`). Sonarr cannot map the combined title and refuses the automatic import. The penalty puts them below every parseable release of the same language and keeps them out of the delay bypass; a German double-title release is still preferred over English as a last resort |
 
 ---
