@@ -39,6 +39,7 @@ Each profile therefore has a single quality group containing all allowed qualiti
 | HDR *(German 4K only)* | +500 |
 | DV (w/o HDR fallback) *(German 4K only)* | -1 000 |
 | Unwanted: CAM/TS / Line/Mic Dubbed / External Audio | -100 000 *(rejected)* |
+| Unwanted: Double Title | -14 000 |
 
 The default delay profile lets releases scoring at least 15 000 (= German) bypass the delay; everything else waits 6 hours.
 
@@ -59,6 +60,7 @@ The default delay profile lets releases scoring at least 15 000 (= German) bypas
 | Unwanted: CAM/TS | Rejects CAM, Telesync and Telecine (Sonarr has no such qualities) |
 | Unwanted: Line/Mic Dubbed | Rejects German cinema/line audio: MD, LD, AC3MD, AC3LD, LiNE, MiC |
 | Unwanted: External Audio | Rejects German audio synced in from another source: AC3D, DTSD, EAC3D …, and *Dubbed* in Radarr |
+| Unwanted: Double Title | Penalizes *English Title - German Title* series releases (e.g. `Adventure.Time.-.Abenteuerzeit.mit.Finn.und.Jake.S05E04…`). Sonarr cannot map the combined title and refuses the automatic import. The penalty puts them below every parseable release of the same language and keeps them out of the delay bypass; a German double-title release is still preferred over English as a last resort |
 
 ---
 
