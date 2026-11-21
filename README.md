@@ -38,7 +38,7 @@ Each profile therefore has a single quality group containing all allowed qualiti
 | Source: HDTV / WEB / Bluray | +100 / +200 / +300 |
 | HDR *(German 4K only)* | +500 |
 | DV (w/o HDR fallback) *(German 4K only)* | -1 000 |
-| Unwanted: CAM/TS / Line/Mic Dubbed / External Audio / Upscaled / BR-DISK / 3D | -100 000 *(rejected)* |
+| Unwanted: CAM/TS / Line/Mic Dubbed / External Audio / Upscaled / BR-DISK / ISO / 3D | -100 000 *(rejected)* |
 | Repack/Proper / v2 / v3 | +5 / +6 / +7 |
 | Unwanted: Double Title | -14 000 |
 
@@ -64,6 +64,7 @@ The default delay profile lets releases scoring at least 15 000 (= German) bypas
 | Repack/Proper / v2 / v3 | Prefers fixed re-releases (REPACK, PROPER, RERiP). Propers/Repacks are set to *Do not prefer*, so only this score makes them an upgrade. Upgrade Until Score includes the +7 |
 | Unwanted: Upscaled | Rejects upscaled fake 4K: Upscaled, AI Upscale, UpsUHD |
 | Unwanted: BR-DISK | Rejects full Blu-ray disc images (COMPLETE BLURAY, BDMV, BD50/66). Sonarr has no BR-DISK quality |
+| Unwanted: ISO | Rejects disc images: ISO, IMG (incl. Blu-ray/UHD ISO), DVDR, DVD5/DVD9, PAL/NTSC DVD. Sonarr parses DVD images as plain DVD |
 | Unwanted: 3D | Rejects 3D releases (3D, SBS, HSBS, HOU) |
 | Unwanted: Double Title | Penalizes *English Title - German Title* series releases (e.g. `Adventure.Time.-.Abenteuerzeit.mit.Finn.und.Jake.S05E04…`). Sonarr cannot map the combined title and refuses the automatic import. The penalty puts them below every parseable release of the same language and keeps them out of the delay bypass; a German double-title release is still preferred over English as a last resort |
 
